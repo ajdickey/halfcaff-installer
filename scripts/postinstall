@@ -1,0 +1,22 @@
+#!/bin/zsh
+set -euo pipefail
+TARGET_USER="$(stat -f%Su /dev/console)"
+TARGET_HOME="$(dscl . -read /Users/$TARGET_USER NFSHomeDirectory | awk '{print $2}')"
+WEF="$TARGET_HOME/Library/Containers/com.microsoft.Word/Data/Documents/wef"
+OSF="$TARGET_HOME/Library/Containers/com.Microsoft.OsfWebHost/Data"
+CACHE1="$TARGET_HOME/Library/Containers/com.microsoft.Word/Data/Library/Caches"
+CACHE2="$TARGET_HOME/Library/Containers/com.microsoft.Word/Data/Library/WebKit"
+MANIFEST_SRC="/Library/BluebookAddin/manifest.xml"
+sudo -u "$TARGET_USER" osascript -e 'tell application "Microsoft Word" to quit' >/dev/null 2>&1 || true
+mkdir -p "$WEF" "$OSF" "$CACHE1" "$CACHE2"
+find "$WEF" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+find "$OSF" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+find "$CACHE1" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+find "$CACHE2" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+install -m 0644 "$MANIFEST_SRC" "$WEF/bluebook-dev.manifest.xml"
+if command -v npx >/dev/null 2>&1; then
+  sudo -u "$TARGET_USER" npx --yes office-addin-dev-settings register "$WEF/bluebook-dev.manifest.xml" >/dev/null || true
+  sudo -u "$TARGET_USER" npx --yes office-addin-dev-settings sideload "$WEF/bluebook-dev.manifest.xml" desktop >/dev/null || true
+fi
+sudo -u "$TARGET_USER" open -a "Microsoft Word" || true
+exit 0
